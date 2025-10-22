@@ -12,7 +12,7 @@
 // 7) 테이블(Cluster/신뢰도/근거 컬럼 제거) + 모달(검토 → 우측 확장 수정, Work 검색/재배정/새 Work 생성)
 // ※ shadcn/ui, lucide-react, recharts 사용 가정
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import useSWR from "swr";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -927,11 +927,32 @@ function ClusterMeta() {
 FRBR 생성 건수 급감 시 파이프라인 점검.
 신뢰도 하락 시 동형어/동명이인 처리 룰 업데이트.`);
 
+  // 파이차트 데이터 준비 (useMemo로 최적화)
+  const pieData = useMemo(
+    () => [
+      {
+        name: "배정됨",
+        value: s.assigned,
+        color: "#059669", // emerald-600 - 더 진한 초록
+        percentage: ((s.assigned / s.totalIn) * 100).toFixed(1),
+      },
+      {
+        name: "미배정",
+        value: s.unassigned,
+        color: "#ea580c", // orange-600 - 주황색 계열
+        percentage: ((s.unassigned / s.totalIn) * 100).toFixed(1),
+      },
+    ],
+    [s.assigned, s.unassigned, s.totalIn]
+  );
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       <Card className="rounded-2xl">
         <CardHeader className="pb-2 flex flex-row items-center justify-between">
-          <CardTitle className="text-base">Work 클러스터링 요약</CardTitle>
+          <CardTitle className="text-lg font-semibold">
+            Work 클러스터링 요약
+          </CardTitle>
           <div className="flex gap-2 text-sm">
             <Button
               variant={period === "today" ? "default" : "outline"}
@@ -951,18 +972,70 @@ FRBR 생성 건수 급감 시 파이프라인 점검.
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="space-y-1 text-sm">
-          <div>
-            총 반입된 도서 수:{" "}
-            <span className="font-medium">{s.totalIn.toLocaleString()}</span>
+        <CardContent className="space-y-4">
+          {/* 파이차트 섹션 */}
+          <div className="h-48">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={pieData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={70}
+                  innerRadius={30}
+                  label={({ name, percentage }) => {
+                    const shortName = name === "배정됨" ? "배정" : "미배정";
+                    return `${shortName}\n${percentage}%`;
+                  }}
+                  labelLine={false}
+                >
+                  {pieData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(value, name) => [value.toLocaleString(), name]}
+                  labelStyle={{ color: "#374151" }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
           </div>
-          <div>
-            Work(저작)에 배정된 수:{" "}
-            <span className="font-medium">{s.assigned.toLocaleString()}</span>
-          </div>
-          <div>
-            미배정 수:{" "}
-            <span className="font-medium">{s.unassigned.toLocaleString()}</span>
+
+          {/* 통계 정보 */}
+          <div className="space-y-3">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-gray-900">
+                {s.totalIn.toLocaleString()}
+              </div>
+              <div className="text-sm text-gray-600">총 반입된 도서 수</div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="text-center p-3 bg-emerald-50 rounded-xl border border-emerald-100">
+                <div className="text-xl font-bold text-emerald-800">
+                  {s.assigned.toLocaleString()}
+                </div>
+                <div className="text-xs text-emerald-700 font-medium">
+                  배정됨
+                </div>
+                <div className="text-xs text-emerald-600">
+                  {((s.assigned / s.totalIn) * 100).toFixed(1)}%
+                </div>
+              </div>
+              <div className="text-center p-3 bg-orange-50 rounded-xl border border-orange-100">
+                <div className="text-xl font-bold text-orange-800">
+                  {s.unassigned.toLocaleString()}
+                </div>
+                <div className="text-xs text-orange-700 font-medium">
+                  미배정
+                </div>
+                <div className="text-xs text-orange-600">
+                  {((s.unassigned / s.totalIn) * 100).toFixed(1)}%
+                </div>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
