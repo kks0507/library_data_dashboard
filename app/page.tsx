@@ -34,6 +34,13 @@ import {
   CheckCircle2,
   AlertCircle,
   XCircle,
+  Plus,
+  Edit,
+  Trash2,
+  Save,
+  X,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -84,6 +91,13 @@ type ClusterSummaryNew = {
   totalIn: number; // 총 반입된 도서 수
   assigned: number; // Work 배정 수
   unassigned: number; // 미배정 수
+};
+
+type MemoItem = {
+  id: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 type PipelineStatus = {
@@ -920,12 +934,111 @@ function ClusterMeta() {
     unassigned: 32,
   };
 
-  // 운영 메모 편집 (문자열은 템플릿 리터럴로 안전하게 작성)
-  const [editing, setEditing] = useState(false);
-  const [memo, setMemo] =
-    useState(`어제 대비 Work 증가는 저작 병합/분할 검토 필요.
-FRBR 생성 건수 급감 시 파이프라인 점검.
-신뢰도 하락 시 동형어/동명이인 처리 룰 업데이트.`);
+  // 운영 메모 CRUD 기능
+  const [memos, setMemos] = useState<MemoItem[]>([
+    {
+      id: "1",
+      content: "어제 대비 Work 증가는 저작 병합/분할 검토 필요.",
+      createdAt: "2024-01-15T09:00:00Z",
+      updatedAt: "2024-01-15T09:00:00Z",
+    },
+    {
+      id: "2",
+      content: "FRBR 생성 건수 급감 시 파이프라인 점검.",
+      createdAt: "2024-01-14T14:30:00Z",
+      updatedAt: "2024-01-14T14:30:00Z",
+    },
+    {
+      id: "3",
+      content: "신뢰도 하락 시 동형어/동명이인 처리 룰 업데이트.",
+      createdAt: "2024-01-13T11:15:00Z",
+      updatedAt: "2024-01-13T11:15:00Z",
+    },
+  ]);
+
+  const [editingMemoId, setEditingMemoId] = useState<string | null>(null);
+  const [editingContent, setEditingContent] = useState("");
+  const [isAddingNew, setIsAddingNew] = useState(false);
+  const [newMemoContent, setNewMemoContent] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 3;
+
+  // 메모 CRUD 함수들
+  const handleEditMemo = (memo: MemoItem) => {
+    setEditingMemoId(memo.id);
+    setEditingContent(memo.content);
+  };
+
+  const handleSaveEdit = () => {
+    if (editingMemoId) {
+      setMemos((prev) =>
+        prev.map((memo) =>
+          memo.id === editingMemoId
+            ? {
+                ...memo,
+                content: editingContent,
+                updatedAt: new Date().toISOString(),
+              }
+            : memo
+        )
+      );
+      setEditingMemoId(null);
+      setEditingContent("");
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingMemoId(null);
+    setEditingContent("");
+  };
+
+  const handleDeleteMemo = (id: string) => {
+    setMemos((prev) => prev.filter((memo) => memo.id !== id));
+  };
+
+  const handleAddNewMemo = () => {
+    if (newMemoContent.trim()) {
+      const newMemo: MemoItem = {
+        id: Date.now().toString(),
+        content: newMemoContent.trim(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      setMemos((prev) => [newMemo, ...prev]);
+      setNewMemoContent("");
+      setIsAddingNew(false);
+    }
+  };
+
+  const handleCancelAdd = () => {
+    setNewMemoContent("");
+    setIsAddingNew(false);
+  };
+
+  // 시간 포맷팅 함수
+  const formatDateTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleString("ko-KR", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  // 페이지네이션 계산
+  const totalPages = Math.ceil(memos.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentMemos = memos.slice(startIndex, endIndex);
+
+  // 페이지 변경 함수
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    setEditingMemoId(null); // 편집 모드 종료
+    setIsAddingNew(false); // 새 메모 추가 모드 종료
+  };
 
   // 파이차트 데이터 준비 (useMemo로 최적화)
   const pieData = useMemo(
@@ -1041,44 +1154,189 @@ FRBR 생성 건수 급감 시 파이프라인 점검.
       </Card>
       <Card className="rounded-2xl md:col-span-2">
         <CardHeader className="pb-2 flex flex-row items-center justify-between">
-          <CardTitle className="text-base">운영 메모</CardTitle>
+          <CardTitle className="text-lg font-semibold">운영 메모</CardTitle>
           <Button
             variant="outline"
             size="sm"
             className="rounded-xl bg-transparent"
-            onClick={() => setEditing(!editing)}
+            onClick={() => setIsAddingNew(true)}
           >
-            수정
+            <Plus className="h-4 w-4 mr-2" />새 메모
           </Button>
         </CardHeader>
-        <CardContent>
-          {editing ? (
-            <div className="space-y-2">
-              <textarea
-                className="w-full min-h-[120px] rounded-xl border p-3 bg-transparent"
-                value={memo}
-                onChange={(e) => setMemo(e.target.value)}
-              />
-              <div className="flex gap-2">
+        <CardContent className="space-y-4">
+          {/* 새 메모 추가 */}
+          {isAddingNew && (
+            <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
+              <div className="space-y-3">
+                <div className="text-sm font-medium text-blue-800">
+                  새 메모 추가
+                </div>
+                <textarea
+                  className="w-full min-h-[80px] rounded-lg border border-blue-300 p-3 bg-white text-sm"
+                  placeholder="새로운 운영 메모를 입력하세요..."
+                  value={newMemoContent}
+                  onChange={(e) => setNewMemoContent(e.target.value)}
+                />
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    className="rounded-lg bg-blue-600 hover:bg-blue-700"
+                    onClick={handleAddNewMemo}
+                    disabled={!newMemoContent.trim()}
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    저장
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-lg bg-transparent border-blue-300 text-blue-700 hover:bg-blue-50"
+                    onClick={handleCancelAdd}
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    취소
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 메모 목록 */}
+          <div className="space-y-3">
+            {currentMemos.map((memo) => (
+              <div
+                key={memo.id}
+                className="p-4 bg-gray-50 rounded-xl border border-gray-200"
+              >
+                {editingMemoId === memo.id ? (
+                  // 편집 모드
+                  <div className="space-y-3">
+                    <div className="text-sm font-medium text-gray-700">
+                      메모 편집
+                    </div>
+                    <textarea
+                      className="w-full min-h-[80px] rounded-lg border border-gray-300 p-3 bg-white text-sm"
+                      value={editingContent}
+                      onChange={(e) => setEditingContent(e.target.value)}
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        className="rounded-lg bg-green-600 hover:bg-green-700"
+                        onClick={handleSaveEdit}
+                        disabled={!editingContent.trim()}
+                      >
+                        <Save className="h-4 w-4 mr-2" />
+                        저장
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-lg bg-transparent border-gray-300 text-gray-700 hover:bg-gray-50"
+                        onClick={handleCancelEdit}
+                      >
+                        <X className="h-4 w-4 mr-2" />
+                        취소
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  // 보기 모드
+                  <div className="space-y-3">
+                    <div className="text-sm text-gray-800 leading-relaxed">
+                      {memo.content}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs text-gray-500">
+                        생성: {formatDateTime(memo.createdAt)}
+                        {memo.updatedAt !== memo.createdAt && (
+                          <span className="ml-2">
+                            • 수정: {formatDateTime(memo.updatedAt)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="rounded-lg bg-transparent border-gray-300 text-gray-700 hover:bg-gray-50"
+                          onClick={() => handleEditMemo(memo)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="rounded-lg bg-transparent border-red-300 text-red-700 hover:bg-red-50"
+                          onClick={() => handleDeleteMemo(memo.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {memos.length === 0 && (
+            <div className="text-center py-8 text-gray-500">
+              <div className="text-sm">아직 등록된 메모가 없습니다.</div>
+              <div className="text-xs mt-1">새 메모를 추가해보세요.</div>
+            </div>
+          )}
+
+          {/* 페이지네이션 */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+              <div className="text-sm text-gray-500">
+                {startIndex + 1}-{Math.min(endIndex, memos.length)} /{" "}
+                {memos.length}개
+              </div>
+              <div className="flex items-center gap-2">
                 <Button
-                  size="sm"
-                  className="rounded-xl"
-                  onClick={() => setEditing(false)}
-                >
-                  저장
-                </Button>
-                <Button
-                  size="sm"
                   variant="outline"
-                  className="rounded-xl bg-transparent"
-                  onClick={() => setEditing(false)}
+                  size="sm"
+                  className="rounded-lg bg-transparent border-gray-300 text-gray-700 hover:bg-gray-50"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
                 >
-                  취소
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+
+                <div className="flex gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                    (page) => (
+                      <Button
+                        key={page}
+                        variant={currentPage === page ? "default" : "outline"}
+                        size="sm"
+                        className={`rounded-lg ${
+                          currentPage === page
+                            ? "bg-blue-600 hover:bg-blue-700 text-white"
+                            : "bg-transparent border-gray-300 text-gray-700 hover:bg-gray-50"
+                        }`}
+                        onClick={() => handlePageChange(page)}
+                      >
+                        {page}
+                      </Button>
+                    )
+                  )}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-lg bg-transparent border-gray-300 text-gray-700 hover:bg-gray-50"
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                >
+                  <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
             </div>
-          ) : (
-            <pre className="whitespace-pre-wrap text-sm">{memo}</pre>
           )}
         </CardContent>
       </Card>
