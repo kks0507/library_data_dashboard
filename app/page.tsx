@@ -41,6 +41,11 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  Activity,
+  Clock,
+  FileCheck,
+  AlertTriangle,
+  Timer,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -98,6 +103,21 @@ type MemoItem = {
   content: string;
   createdAt: string;
   updatedAt: string;
+};
+
+type ProgressData = {
+  overallProgress: number; // 전체 진행률 (%)
+  apisInProgress: number; // 작업 중인 API 수
+  totalApis: number; // 전체 API 수
+  efficiency: number; // 효율성 (%)
+  processingSpeed: number; // 처리 속도 (건/시간)
+  estimatedCompletion: string; // 예상 완료 시간
+  completedFiles: number; // 완료된 파일 수
+  totalFiles: number; // 전체 파일 수
+  errorRate: number; // 오류율 (%)
+  totalErrors: number; // 총 오류 수
+  executionTime: string; // 실행 시간 (HH:MM:SS)
+  startTime: string; // 시작 시간
 };
 
 type PipelineStatus = {
@@ -180,6 +200,22 @@ const mockClusterRows: ClusterRow[] = Array.from({ length: 12 }).map(
     workId: `W-${500 + Math.floor(i / 2)}`,
   })
 );
+
+// 진행률 데이터 Mock
+const mockProgressData: ProgressData = {
+  overallProgress: 13.8,
+  apisInProgress: 5,
+  totalApis: 40,
+  efficiency: 15.0,
+  processingSpeed: 2500,
+  estimatedCompletion: "07/15 13:47",
+  completedFiles: 20,
+  totalFiles: 145,
+  errorRate: 0.8,
+  totalErrors: 78,
+  executionTime: "01:00:49",
+  startTime: "오전 3:09:18",
+};
 
 // ---------------------------
 // 2) 상단 필터바
@@ -350,6 +386,134 @@ function MiniSpark({
           />
         </LineChart>
       </ResponsiveContainer>
+    </div>
+  );
+}
+
+// ---------------------------
+// 4) 진행률 카드 컴포넌트들
+// ---------------------------
+
+function ProgressCards({ progressData }: { progressData: ProgressData }) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* 전체 진행률 */}
+      <Card className="rounded-2xl">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Activity className="h-4 w-4" />
+            전체 진행률
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-3xl font-bold text-gray-900 mb-2">
+            {progressData.overallProgress}%
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div
+              className="bg-gradient-to-r from-blue-400 to-green-500 h-2 rounded-full transition-all duration-300"
+              style={{ width: `${progressData.overallProgress}%` }}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 작업 중인 API */}
+      <Card className="rounded-2xl">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Database className="h-4 w-4" />
+            작업 중인 API
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-3xl font-bold text-gray-900 mb-1">
+            {progressData.apisInProgress} / {progressData.totalApis}
+          </div>
+          <div className="text-sm text-green-600 font-medium">
+            ▲ {progressData.efficiency}% 효율
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 처리 속도 */}
+      <Card className="rounded-2xl">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <TrendingUp className="h-4 w-4" />
+            처리 속도
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-3xl font-bold text-gray-900 mb-1">
+            {progressData.processingSpeed.toLocaleString()} 건/시간
+          </div>
+          <div className="text-sm text-gray-500">
+            예상 완료: {progressData.estimatedCompletion}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 완료된 파일 */}
+      <Card className="rounded-2xl">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <FileCheck className="h-4 w-4" />
+            완료된 파일
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-3xl font-bold text-gray-900 mb-2">
+            {progressData.completedFiles} / {progressData.totalFiles}
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div
+              className="bg-gradient-to-r from-blue-400 to-green-500 h-2 rounded-full transition-all duration-300"
+              style={{
+                width: `${
+                  (progressData.completedFiles / progressData.totalFiles) * 100
+                }%`,
+              }}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 오류율 */}
+      <Card className="rounded-2xl">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4" />
+            오류율
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-3xl font-bold text-gray-900 mb-1">
+            {progressData.errorRate}%
+          </div>
+          <div className="text-sm text-gray-500">
+            총 오류: {progressData.totalErrors} 건
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 실행 시간 */}
+      <Card className="rounded-2xl">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Timer className="h-4 w-4" />
+            실행 시간
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-3xl font-bold text-gray-900 mb-1">
+            {progressData.executionTime}
+          </div>
+          <div className="text-sm text-gray-500">
+            시작: {progressData.startTime}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -905,6 +1069,8 @@ export default function FRBRDashboard() {
       <FilterBar onRefresh={() => mutate()} />
 
       <KPICards kpi={kpi} />
+
+      <ProgressCards progressData={mockProgressData} />
 
       <TrendBarChart kpi={kpi} />
 
